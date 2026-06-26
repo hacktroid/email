@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hacktroid Webmail</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-200 font-sans h-screen flex items-center justify-center">
+
+    <div id="view-login" class="bg-gray-800 p-8 rounded-lg shadow-xl w-96 border border-gray-700 block">
+        <h2 class="text-2xl font-bold text-blue-400 mb-6 text-center">Hacktroid Webmail</h2>
+        <div id="login-error" class="hidden text-red-400 text-sm mb-4 text-center">Invalid username or password.</div>
+        <input type="text" placeholder="Corporate Email" class="w-full p-3 mb-4 bg-gray-700 rounded border border-gray-600 focus:outline-none focus:border-blue-500">
+        <input type="password" placeholder="Password" class="w-full p-3 mb-6 bg-gray-700 rounded border border-gray-600 focus:outline-none focus:border-blue-500">
+        <button onclick="failLogin()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded transition-colors">Sign In</button>
+        <div class="mt-4 text-center">
+            <button onclick="switchView('view-forgot')" class="text-sm text-gray-400 hover:text-blue-400">Forgot Password?</button>
+        </div>
+    </div>
+
+    <div id="view-forgot" class="bg-gray-800 p-8 rounded-lg shadow-xl w-96 border border-gray-700 hidden">
+        <h2 class="text-xl font-bold text-blue-400 mb-2">Account Recovery</h2>
+        <p class="text-sm text-gray-400 mb-6">Enter your email to begin the recovery process.</p>
+        <div id="forgot-error" class="hidden text-red-400 text-sm mb-4">Email not found in system.</div>
+        <input type="email" id="recovery-email" placeholder="arjun.mehta@hacktroid.in" class="w-full p-3 mb-6 bg-gray-700 rounded border border-gray-600 focus:outline-none focus:border-blue-500">
+        <button onclick="checkEmail()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded transition-colors">Continue</button>
+        <button onclick="switchView('view-login')" class="w-full mt-3 bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-2 rounded transition-colors">Back</button>
+    </div>
+
+    <div id="view-question" class="bg-gray-800 p-8 rounded-lg shadow-xl w-96 border border-gray-700 hidden">
+        <h2 class="text-xl font-bold text-blue-400 mb-2">Identity Verification</h2>
+        <p class="text-sm text-gray-400 mb-6">Answer your predefined security question to access your inbox.</p>
+        <div id="question-error" class="hidden text-red-400 text-sm mb-4">Incorrect answer. Incident logged.</div>
+        <label class="block text-gray-300 text-sm font-bold mb-2">What is the name of your first pet?</label>
+        <input type="text" id="security-answer" placeholder="Your answer..." class="w-full p-3 mb-6 bg-gray-700 rounded border border-gray-600 focus:outline-none focus:border-blue-500">
+        <button onclick="checkAnswer()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded transition-colors">Unlock Mailbox</button>
+    </div>
+
+    <div id="view-mailbox" class="bg-gray-900 w-full h-full p-8 hidden flex-col">
+        <div class="max-w-4xl mx-auto w-full">
+            <div class="flex justify-between items-center border-b border-gray-700 pb-4 mb-6">
+                <h1 class="text-2xl font-bold text-blue-400">Arjun's Inbox <span class="text-sm text-gray-500 font-normal ml-2">RESTRICTED ACCESS</span></h1>
+                <button onclick="location.reload()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm">Sign Out</button>
+            </div>
+            <div id="email-container" class="space-y-4">
+                <div class="text-center text-gray-500 mt-10">Decrypting emails...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // SPA Routing Logic
+        function switchView(viewId) {
+            document.querySelectorAll('body > div').forEach(div => div.classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
+            document.getElementById(viewId).classList.add(viewId === 'view-mailbox' ? 'flex' : 'block');
+        }
+
+        function failLogin() {
+            document.getElementById('login-error').classList.remove('hidden');
+        }
+
+        function checkEmail() {
+            const email = document.getElementById('recovery-email').value.toLowerCase().trim();
+            if (email === 'arjun.mehta@hacktroid.in') {
+                document.getElementById('forgot-error').classList.add('hidden');
+                switchView('view-question');
+            } else {
+                document.getElementById('forgot-error').classList.remove('hidden');
+            }
+        }
+
+        function checkAnswer() {
+            const answer = document.getElementById('security-answer').value.toLowerCase().trim();
+            if (answer === 'obsidian') {
+                switchView('view-mailbox');
+                document.body.classList.remove('items-center', 'justify-center'); // Reset centering for mailbox
+                fetchEmails();
+            } else {
+                document.getElementById('question-error').classList.remove('hidden');
+            }
+        }
+
+        // Fetch JSON from Cloudflare Worker
+        async function fetchEmails() {
+            const API_URL = 'https://hacktroid-email.hacktroidbot.workers.dev/api/inbox'; 
+            const container = document.getElementById('email-container');
+
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                
+                container.innerHTML = ''; // Clear loading text
+
+                data.mailbox.forEach(email => {
+                    container.innerHTML += `
+                        <div class="bg-gray-800 p-5 rounded-lg border border-gray-700 shadow-md">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="font-bold text-gray-200">${email.sender}</span>
+                                <span class="text-xs text-gray-500">${email.date}</span>
+                            </div>
+                            <div class="text-sm font-semibold text-blue-300 mb-3">Subject: ${email.subject}</div>
+                            <div class="text-gray-400 text-sm whitespace-pre-wrap">${email.body}</div>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                container.innerHTML = `<div class="text-red-400 text-center mt-10">Failed to establish secure connection to mail server.</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
